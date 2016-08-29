@@ -1,6 +1,7 @@
 package dmap
 
 import (
+	"fmt"
 	"gopkg.in/redis.v4"
 	"hash/fnv"
 	"sync"
@@ -47,7 +48,21 @@ func (d *Dmap) Get(key string) interface{} {
 	shard := d.getShard(key)
 	shard.Lock()
 	defer shard.Unlock()
-	return shard.theMap[key]
+
+	var err error
+	var val interface{}
+	val, present := shard.theMap[key]
+	if !present {
+		fmt.Println("[get] getting from redis..")
+		val, err = d.rediCli.Get(key).Result()
+		if err != nil {
+			fmt.Println("[get]", err)
+			return nil
+		}
+		shard.theMap[key] = val
+	}
+
+	return val
 }
 
 func (d *Dmap) Set(key string, val interface{}) {
@@ -55,6 +70,11 @@ func (d *Dmap) Set(key string, val interface{}) {
 	shard.Lock()
 	defer shard.Unlock()
 	shard.theMap[key] = val
+	go func() {
+		// redis client is thread-safe
+		err := d.rediCli.Set(key, val, 0) // TODO check error etc
+		fmt.Println("[set] redis error ", err)
+	}()
 }
 
 // Returns shard under given key
