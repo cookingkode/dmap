@@ -37,7 +37,7 @@ func New(redisBroker string, nShards int, db int) *Dmap {
 
 	// just listen to Key set event
 	// ref ; http://redis.io/topics/notifications
-	handle.rediCli.ConfigSet("notify-keyspace-events", "E$xe")
+	handle.rediCli.ConfigSet("notify-keyspace-events", "E$xeg")
 
 	notificationOfInterest := []string{
 		fmt.Sprintf("__keyevent@%d__:set", db),
@@ -131,7 +131,6 @@ func (d *Dmap) watch(notificationChannels []string) {
 		panic(err)
 	}
 
-	fmt.Println("[watcher] listening to ", notificationChannels)
 	for {
 		msg, err := pubsub.ReceiveMessage()
 		if err == nil {
@@ -142,9 +141,10 @@ func (d *Dmap) watch(notificationChannels []string) {
 			}
 			event := msg.Channel[offset+1:]
 
+			//fmt.Println("[watcher] event ", event, msg.Payload)
+
 			switch event {
 			case "set":
-				// fmt.Println("[watcher]", msg.Payload, "is set..")
 				val, err := d.rediCli.Get(msg.Payload).Result()
 				if err == nil {
 					//fmt.Println("[watcher] setting ", msg.Payload, " to ", val)
