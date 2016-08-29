@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"github.com/cookingkode/dmap"
 	"github.com/peterh/liner"
+	"log"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -15,7 +17,13 @@ var (
 )
 
 func main() {
+
 	flag.Parse()
+
+	dmap.Logger = log.New(os.Stderr, "", log.LstdFlags)
+
+	// uncomment this in case you need logs
+	dmap.Logger = nil
 
 	dmap := dmap.New("localhost:6379", 32, 0)
 

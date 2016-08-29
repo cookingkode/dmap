@@ -67,10 +67,10 @@ func (d *Dmap) Get(key string) interface{} {
 	var val interface{}
 	val, present := shard.theMap[key]
 	if !present {
-		fmt.Println("[get] getting from redis..")
+		logf("[get] getting from redis..\n")
 		val, err = d.rediCli.Get(key).Result()
 		if err != nil {
-			fmt.Println("[get]", err)
+			logf("[get] error %v\n", err)
 			return nil
 		}
 		shard.theMap[key] = val
@@ -86,7 +86,7 @@ func (d *Dmap) Set(key string, val interface{}, expirySeconds int) {
 		expire := time.Second * (time.Duration(expirySeconds))
 		// redis client is thread-safe
 		err := d.rediCli.Set(key, val, expire) // TODO check error etc
-		fmt.Println("[set] redis set error ", err)
+		logf("[set] redis set error %v\n", err)
 	}()
 }
 
@@ -95,7 +95,7 @@ func (d *Dmap) Del(key string) {
 	go func() {
 		// redis client is thread-safe
 		err := d.rediCli.Del(key)
-		fmt.Println("[set] redis del error ", err)
+		logf("[set] redis del error %v\n", err)
 	}()
 }
 
@@ -141,13 +141,12 @@ func (d *Dmap) watch(notificationChannels []string) {
 			}
 			event := msg.Channel[offset+1:]
 
-			//fmt.Println("[watcher] event ", event, msg.Payload)
+			//logf("[watcher] event %v %v \n", event, msg.Payload)
 
 			switch event {
 			case "set":
 				val, err := d.rediCli.Get(msg.Payload).Result()
 				if err == nil {
-					//fmt.Println("[watcher] setting ", msg.Payload, " to ", val)
 					d.setLocal(msg.Payload, val)
 				}
 			case "del":
