@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"gopkg.in/redis.v4"
 	"hash/fnv"
+	"strings"
 	"sync"
+	"time"
 )
 
 type Dmap struct {
@@ -35,10 +37,15 @@ func New(redisBroker string, nShards int, db int) *Dmap {
 
 	// just listen to Key set event
 	// ref ; http://redis.io/topics/notifications
-	handle.rediCli.ConfigSet("notify-keyspace-events", "E$")
-	listeningChannel := fmt.Sprintf("__keyevent@%d__:set", db)
+	handle.rediCli.ConfigSet("notify-keyspace-events", "E$xe")
 
-	go handle.watch(listeningChannel)
+	notificationOfInterest := []string{
+		fmt.Sprintf("__keyevent@%d__:set", db),
+		fmt.Sprintf("__keyevent@%d__:del", db),
+		fmt.Sprintf("__keyevent@%d__:expired", db),
+	}
+
+	go handle.watch(notificationOfInterest)
 
 	//init the concurrent map
 	for i := 0; i < nShards; i++ {
@@ -72,14 +79,27 @@ func (d *Dmap) Get(key string) interface{} {
 	return val
 }
 
-func (d *Dmap) Set(key string, val interface{}) {
+func (d *Dmap) Set(key string, val interface{}, expirySeconds int) {
 	d.setLocal(key, val)
 	go func() {
+
+		expire := time.Second * (time.Duration(expirySeconds))
 		// redis client is thread-safe
-		err := d.rediCli.Set(key, val, 0) // TODO check error etc
-		fmt.Println("[set] redis error ", err)
+		err := d.rediCli.Set(key, val, expire) // TODO check error etc
+		fmt.Println("[set] redis set error ", err)
 	}()
 }
+
+func (d *Dmap) Del(key string) {
+	d.delLocal(key)
+	go func() {
+		// redis client is thread-safe
+		err := d.rediCli.Del(key)
+		fmt.Println("[set] redis del error ", err)
+	}()
+}
+
+/****************************** local *************************************/
 
 //set locally
 func (d *Dmap) setLocal(key string, val interface{}) {
@@ -89,6 +109,14 @@ func (d *Dmap) setLocal(key string, val interface{}) {
 	shard.theMap[key] = val
 }
 
+//set locally
+func (d *Dmap) delLocal(key string) {
+	shard := d.getShard(key)
+	shard.Lock()
+	defer shard.Unlock()
+	delete(shard.theMap, key)
+}
+
 // Returns shard under given key
 func (d *Dmap) getShard(key string) *shard {
 	hasher := fnv.New32()
@@ -96,23 +124,38 @@ func (d *Dmap) getShard(key string) *shard {
 	return d.shards[uint(hasher.Sum32())%uint(d.nShards)]
 }
 
-func (d *Dmap) watch(notificationChannel string) {
+func (d *Dmap) watch(notificationChannels []string) {
 	//ref : https://godoc.org/gopkg.in/redis.v4#PubSub
-	pubsub, err := d.rediCli.Subscribe(notificationChannel)
+	pubsub, err := d.rediCli.Subscribe(notificationChannels...)
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println("[watcher] listening to ", notificationChannel)
+	fmt.Println("[watcher] listening to ", notificationChannels)
 	for {
 		msg, err := pubsub.ReceiveMessage()
 		if err == nil {
-			// fmt.Println("[watcher]", msg.Payload, "is set..")
-			val, err := d.rediCli.Get(msg.Payload).Result()
-			if err == nil {
-				//fmt.Println("[watcher] setting ", msg.Payload, " to ", val)
-				d.setLocal(msg.Payload, val)
+			// TODO i hope redis choes not change!!
+			offset := strings.Index(msg.Channel, ":")
+			if offset <= 0 {
+				continue
 			}
+			event := msg.Channel[offset+1:]
+
+			switch event {
+			case "set":
+				// fmt.Println("[watcher]", msg.Payload, "is set..")
+				val, err := d.rediCli.Get(msg.Payload).Result()
+				if err == nil {
+					//fmt.Println("[watcher] setting ", msg.Payload, " to ", val)
+					d.setLocal(msg.Payload, val)
+				}
+			case "del":
+				d.delLocal(msg.Payload)
+			case "expired":
+				d.delLocal(msg.Payload)
+			}
+
 		}
 
 	}
