@@ -16,7 +16,7 @@ var (
 func main() {
 	flag.Parse()
 
-	dmap := dmap.New("localhost:6379", 32)
+	dmap := dmap.New("localhost:6379", 32, 0)
 
 	// setup Liner
 	line := liner.NewLiner()
