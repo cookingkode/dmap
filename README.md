@@ -10,10 +10,12 @@ Install:
 ## Usage
 
 ```go
-//init
-myRedis := "localhost:6379"
-myDB := 0 
-nShards := 32 // function of how much concurreny is there in the app
+//init : here there are two local redis
+myRedisShards := []string{"localhost:6379", "localhost:7777"}
+// use DB 0 for all the instances
+myDBs := []int{0, 0}
+// local shards : function of how much concurreny is there in the app
+nShards := 32 
 
 // the instance returned is a thread-safe string-> interface{} map
 // values set in other instances are reflected here
