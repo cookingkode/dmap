@@ -19,10 +19,18 @@ nShards := 32 // function of how much concurreny is there in the app
 // values set in other instances are reflected here
 dmap := dmap.New(myRedis, myDB, nShards)
 
-dmap.Set("Name", "Cooker")
+// Set without expiry
+dmap.Set("Name", "Cooker", 0)
 whatIsMyName : = dmap.Get("Name")
+
+// Set with expiry of 2 s
+dmap.Set("Foo", "Bar", 2)
 
 dmap.Set("x", 1)
 
 
 ```
+
+## Tests
+see tests/test.go for an interactive shell to test
+TODO : automated tests
