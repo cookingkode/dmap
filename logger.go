@@ -11,5 +11,5 @@ func logf(s string, args ...interface{}) {
 	if Logger == nil {
 		return
 	}
-	Logger.Output(2, fmt.Sprintf(s, args...))
+	Logger.Output(0, fmt.Sprintf(s, args...))
 }

@@ -20,12 +20,13 @@ func main() {
 
 	flag.Parse()
 
-	dmap.Logger = log.New(os.Stderr, "", log.LstdFlags)
+	dmap.Logger = log.New(os.Stdout, "", log.LstdFlags)
 
-	// uncomment this in case you need logs
+	// comment next line in case you need logs
 	dmap.Logger = nil
 
-	dmap := dmap.New("localhost:6379", 32, 0)
+	dmap := dmap.New([]string{"localhost:6379", "localhost:7777"}, 32, []int{0, 0})
+	//dmap := dmap.New([]string{"localhost:6379"}, 32, []int{0})
 
 	// setup Liner
 	line := liner.NewLiner()
@@ -34,7 +35,7 @@ func main() {
 	line.SetCtrlCAborts(true)
 
 	fmt.Println("Usage :")
-	fmt.Println("SET: setx <x> <val> <second_expiry> : <second_expiry> is optiional")
+	fmt.Println("SET: set <x> <val> <second_expiry> : <second_expiry> is optional")
 	fmt.Println("GET  : get <x> ")
 	fmt.Println("DEL  : del <x> ")
 
