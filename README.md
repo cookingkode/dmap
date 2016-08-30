@@ -32,5 +32,5 @@ dmap.Set("x", 1)
 ```
 
 ## Tests
-see tests/test.go for an interactive shell to test
-TODO : automated tests
+* see tests/test.go for an interactive shell to test
+* TODO : automated tests
