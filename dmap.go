@@ -1,3 +1,4 @@
+// Package dmap provides an in-memory distributed map with support for LRU etc
 package dmap
 
 import (
@@ -28,15 +29,23 @@ type Dmap struct {
 	shards  []*shard
 }
 
+// Config is the configuration for the dmap
+// RedisBrokers is an array of backend redis instances of the form "localhost:6379"
+// DB is an array of DB number corresponding to each redis instance above
+// (Only for non-LRU) NoShards is total number of lanes in the dmap, it indicates the amount of concurency
+// WantLru : if true use a 2Q LRU instead of standard map
+// (Only for LRU) NoItemsLRU : no of items to mantain in LRU
 type Config struct {
 	RedisBrokers []string
 	Db           []int
 	NoShards     int
 	Name         string
-	WantLRU      bool // defaults to False
+	WantLRU      bool
 	NoItemsLRU   int
 }
 
+// New generates a new DMAP using DMAP config
+// Note LRU 2Q is about 4x more computationally intensive than regular DMAP
 func New(conf *Config) *Dmap {
 
 	handle := new(Dmap)
@@ -89,6 +98,7 @@ func New(conf *Config) *Dmap {
 	return handle
 }
 
+// Get returns a key from the dmap
 func (d *Dmap) Get(key string) interface{} {
 
 	var err error
@@ -110,6 +120,7 @@ func (d *Dmap) Get(key string) interface{} {
 	return val
 }
 
+// Set sets a key into the dmap
 func (d *Dmap) Set(key string, val interface{}, expirySeconds int) {
 	d.setLocal(key, val)
 
@@ -121,6 +132,7 @@ func (d *Dmap) Set(key string, val interface{}, expirySeconds int) {
 	}()
 }
 
+// Del deletes a key into the dmap
 func (d *Dmap) Del(key string) {
 	d.delLocal(key)
 
