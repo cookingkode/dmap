@@ -73,12 +73,12 @@ func (d *Dmap) watch(cli *redis.Client, notificationChannels []string) {
 			case "set":
 				val, err := cli.Get(msg.Payload).Result()
 				if err == nil {
-					d.setLocal(key, val)
+					d.SetLocal(key, val)
 				}
 			case "del":
-				d.delLocal(key)
+				d.DelLocal(key)
 			case "expired":
-				d.delLocal(key)
+				d.DelLocal(key)
 			}
 
 		}
@@ -90,7 +90,8 @@ func (d *Dmap) watch(cli *redis.Client, notificationChannels []string) {
 // local helpers
 // -----------------
 
-func (d *Dmap) setLocal(key string, val interface{}) {
+// SetLocal sets a value only locally
+func (d *Dmap) SetLocal(key string, val interface{}) {
 	if d.twoQueue != nil {
 		d.twoQueue.Add(key, val)
 	} else {
@@ -101,7 +102,8 @@ func (d *Dmap) setLocal(key string, val interface{}) {
 	}
 }
 
-func (d *Dmap) delLocal(key string) {
+// DelLocal deletes a value only locally
+func (d *Dmap) DelLocal(key string) {
 	if d.twoQueue != nil {
 		d.twoQueue.Remove(key)
 	} else {
@@ -112,7 +114,8 @@ func (d *Dmap) delLocal(key string) {
 	}
 }
 
-func (d *Dmap) getLocal(key string) (interface{}, bool) {
+// SetLocal gets a value from local only
+func (d *Dmap) GetLocal(key string) (interface{}, bool) {
 	var (
 		val interface{}
 		ok  bool

@@ -103,7 +103,7 @@ func (d *Dmap) Get(key string) interface{} {
 
 	var err error
 
-	val, present := d.getLocal(key)
+	val, present := d.GetLocal(key)
 
 	if !present {
 		logf("[get] getting from redis..\n")
@@ -113,7 +113,7 @@ func (d *Dmap) Get(key string) interface{} {
 			logf("[get] error %v\n", err)
 			return nil
 		} else {
-			d.setLocal(key, val)
+			d.SetLocal(key, val)
 		}
 	}
 
@@ -122,7 +122,7 @@ func (d *Dmap) Get(key string) interface{} {
 
 // Set sets a key into the dmap
 func (d *Dmap) Set(key string, val interface{}, expirySeconds int) {
-	d.setLocal(key, val)
+	d.SetLocal(key, val)
 
 	go func() {
 		err := d.setBackend(key, val, expirySeconds)
@@ -134,7 +134,7 @@ func (d *Dmap) Set(key string, val interface{}, expirySeconds int) {
 
 // Del deletes a key into the dmap
 func (d *Dmap) Del(key string) {
-	d.delLocal(key)
+	d.DelLocal(key)
 
 	go func() {
 		// redis client is thread-safe
