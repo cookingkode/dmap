@@ -32,7 +32,10 @@ whatIsMyName : = dmap.Get("Name")
 // Set with expiry of 2 s
 dmap.Set("Foo", "Bar", 2)
 
+// Values are interface and so can change types
 dmap.Set("x", 1)
+dmap.Set("x", "astring")
+
 
 
 ```
