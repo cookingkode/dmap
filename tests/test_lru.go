@@ -23,15 +23,15 @@ func main() {
 	dmap.Logger = log.New(os.Stdout, "", log.LstdFlags)
 
 	// comment next line in case you need logs
-	dmap.Logger = nil
+	//dmap.Logger = nil
 
 	conf := &dmap.Config{
 		[]string{"localhost:6379", "localhost:7777"},
 		[]int{0, 0},
 		32,
 		"test",
-		false,
-		0,
+		true,
+		4,
 	}
 
 	dmap := dmap.New(conf)

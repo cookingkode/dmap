@@ -17,11 +17,24 @@ func getShard(key string, nItems int) uint {
 	return uint(hasher.Sum32()) % uint(nItems)
 }
 
+func (d *Dmap) getBackendKey(key string) string {
+	// prefix
+	return d.name + key
+}
+
+func (d *Dmap) getLocalKey(key string) string {
+	// prefix
+	return strings.TrimPrefix(key, d.name)
+
+}
+
 func (d *Dmap) getBackend(key string) (string, error) {
+	key = d.getBackendKey(key)
 	return d.rediClients[getShard(key, d.nBackendShards)].Get(key).Result()
 }
 
 func (d *Dmap) setBackend(key string, val interface{}, expirySeconds int) error {
+	key = d.getBackendKey(key)
 	expire := time.Second * (time.Duration(expirySeconds))
 	_, err := d.rediClients[getShard(key, d.nBackendShards)].Set(key, val, expire).Result()
 
@@ -29,6 +42,7 @@ func (d *Dmap) setBackend(key string, val interface{}, expirySeconds int) error 
 }
 
 func (d *Dmap) delBackend(key string) {
+	key = d.getBackendKey(key)
 	d.rediClients[getShard(key, d.nBackendShards)].Del(key)
 }
 
@@ -52,18 +66,19 @@ func (d *Dmap) watch(cli *redis.Client, notificationChannels []string) {
 			}
 			event := msg.Channel[offset+1:]
 
-			logf("[watcher] %v event %v %v \n", cli, event, msg.Payload)
+			key := d.getLocalKey(msg.Payload)
+			logf("[watcher] %v event %v %v  KEY = %v \n", cli, event, msg.Payload, key)
 
 			switch event {
 			case "set":
 				val, err := cli.Get(msg.Payload).Result()
 				if err == nil {
-					d.setLocal(msg.Payload, val)
+					d.setLocal(key, val)
 				}
 			case "del":
-				d.delLocal(msg.Payload)
+				d.delLocal(key)
 			case "expired":
-				d.delLocal(msg.Payload)
+				d.delLocal(key)
 			}
 
 		}
@@ -76,24 +91,41 @@ func (d *Dmap) watch(cli *redis.Client, notificationChannels []string) {
 // -----------------
 
 func (d *Dmap) setLocal(key string, val interface{}) {
-	shard := d.shards[getShard(key, d.nShards)]
-	shard.Lock()
-	defer shard.Unlock()
-	shard.theMap[key] = val
+	if d.twoQueue != nil {
+		d.twoQueue.Add(key, val)
+	} else {
+		shard := d.shards[getShard(key, d.nShards)]
+		shard.Lock()
+		defer shard.Unlock()
+		shard.theMap[key] = val
+	}
 }
 
 func (d *Dmap) delLocal(key string) {
-	shard := d.shards[getShard(key, d.nShards)]
-	shard.Lock()
-	defer shard.Unlock()
-	delete(shard.theMap, key)
+	if d.twoQueue != nil {
+		d.twoQueue.Remove(key)
+	} else {
+		shard := d.shards[getShard(key, d.nShards)]
+		shard.Lock()
+		defer shard.Unlock()
+		delete(shard.theMap, key)
+	}
 }
 
 func (d *Dmap) getLocal(key string) (interface{}, bool) {
-	shard := d.shards[getShard(key, d.nShards)]
-	shard.RLock()
-	defer shard.RUnlock()
+	var (
+		val interface{}
+		ok  bool
+	)
 
-	val, ok := shard.theMap[key]
+	if d.twoQueue != nil {
+		val, ok = d.twoQueue.Get(key)
+	} else {
+		shard := d.shards[getShard(key, d.nShards)]
+		shard.RLock()
+		defer shard.RUnlock()
+		val, ok = shard.theMap[key]
+	}
+
 	return val, ok
 }
