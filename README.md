@@ -39,5 +39,5 @@ dmap.Set("x", 1)
 
 ## Tests
 * see tests/test.go for an interactive shell to test normal map
-* see tests/test_lru.go for an interactive shell to test normal map
+* see tests/test_lru.go for an interactive shell to test LRU map
 * TODO : automated tests
